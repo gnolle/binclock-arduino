@@ -1,10 +1,15 @@
 #include <SoftwareSerial.h>
+#include <DS3232RTC.h>
+#include <Time.h>
+#include <Wire.h> 
 
-#define MAX_CMD_LENGTH 20
+#define MAX_CMD_LENGTH 80
  
 #define ledPin 13
 #define rxPin 10
 #define txPin 11
+
+unsigned long tempReadInterval = 5000UL;
  
 SoftwareSerial btSerial(rxPin, txPin);
  
@@ -17,6 +22,21 @@ void setup() {
  
 void loop() {
   handleSerialByte(btSerial.read());
+  //readTime();
+  readTemp();
+}
+
+void readTime() {
+  static time_t currentTime;
+  currentTime = RTC.get();
+}
+
+void readTemp() {
+  static unsigned long previousMillis = 0;
+  if (millis() - previousMillis > tempReadInterval) {
+    previousMillis = millis();
+    Serial.println(RTC.temperature() / 4.0);
+  }
 }
 
 void handleSerialByte(int serialByte) {
@@ -43,6 +63,7 @@ void handleSerialByte(int serialByte) {
 
 void handleCommand(char *command) {
   Serial.println(command);
+  btSerial.println(command);
   if(strcmp(command, "on") == 0){
     digitalWrite(ledPin,1);
     btSerial.println("LED on Pin 13 is on");
