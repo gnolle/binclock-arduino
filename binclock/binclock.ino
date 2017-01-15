@@ -4,12 +4,13 @@
 #include <Wire.h> 
 
 #define MAX_CMD_LENGTH 80
- 
+
 #define ledPin 13
 #define rxPin 10
 #define txPin 11
 
-unsigned long tempReadInterval = 5000UL;
+int sensorPin = A0;
+unsigned long luxReadInterval = 5000UL;
  
 SoftwareSerial btSerial(rxPin, txPin);
  
@@ -23,7 +24,7 @@ void setup() {
 void loop() {
   handleSerialByte(btSerial.read());
   //readTime();
-  readTemp();
+  readLux();
 }
 
 void readTime() {
@@ -31,12 +32,35 @@ void readTime() {
   currentTime = RTC.get();
 }
 
-void readTemp() {
+void readLux() {
   static unsigned long previousMillis = 0;
-  if (millis() - previousMillis > tempReadInterval) {
+  if (millis() - previousMillis > luxReadInterval) {
     previousMillis = millis();
-    Serial.println(RTC.temperature() / 4.0);
+    Serial.println(analogRead(sensorPin));
   }
+}
+
+void readTemperatureSensor() {
+    float sensorReading = RTC.temperature() / 4.0;
+
+    // convert reading to char[]
+    char floatCharBuffer[5];
+    dtostrf(sensorReading, 1, 2, floatCharBuffer);
+
+    // build response (i.e. "TMP19.75")
+    char tempResponse[10] = "TMP"; 
+    strcat(tempResponse, floatCharBuffer);
+    
+    Serial.println(tempResponse);
+    writeToBtSerial(tempResponse);
+}
+
+void writeToBtSerial(char const *message) {
+  // add CR and print to serial
+  char response[strlen(message) + 1];
+  strcpy(response, message);
+  strcat(response, "\r");
+  btSerial.print(response);
 }
 
 void handleSerialByte(int serialByte) {
@@ -64,12 +88,21 @@ void handleSerialByte(int serialByte) {
 void handleCommand(char *command) {
   Serial.println(command);
   btSerial.println(command);
-  if(strcmp(command, "on") == 0){
-    digitalWrite(ledPin,1);
-    btSerial.println("LED on Pin 13 is on");
+
+  if (strcmp(command, "TMP") == 0) {
+    readTemperatureSensor();
+    return;
   }
+  
+  if (strcmp(command, "on") == 0){
+    digitalWrite(ledPin,1);
+    writeToBtSerial("LED on Pin 13 is on");
+    return;
+  }
+  
   if (strcmp(command, "off") == 0){
     digitalWrite(ledPin,0);
-    btSerial.println("LED on Pin 13 is off");
+    writeToBtSerial("LED on Pin 13 is off");
+    return;
   }
 }
