@@ -17,7 +17,6 @@ SoftwareSerial btSerial(rxPin, txPin);
 void setup() {
   Serial.begin(9600);
   btSerial.begin(9600);
-  btSerial.println("bluetooth available");
   pinMode(ledPin, OUTPUT);
 }
  
@@ -44,20 +43,25 @@ void readTemperatureSensor() {
     float sensorReading = RTC.temperature() / 4.0;
 
     // convert reading to char[]
-    char floatCharBuffer[5];
+    char floatCharBuffer[20];
     dtostrf(sensorReading, 1, 2, floatCharBuffer);
 
+    Serial.println(floatCharBuffer);
+
     // build response (i.e. "TMP19.75")
-    char tempResponse[10] = "TMP"; 
+    char tempResponse[50];
+    strcpy(tempResponse, "TMP");
     strcat(tempResponse, floatCharBuffer);
-    
+
     Serial.println(tempResponse);
+    
+    //Serial.println(tempResponse);
     writeToBtSerial(tempResponse);
 }
 
 void writeToBtSerial(char const *message) {
   // add CR and print to serial
-  char response[strlen(message) + 1];
+  char response[50];
   strcpy(response, message);
   strcat(response, "\r");
   btSerial.print(response);
@@ -86,9 +90,7 @@ void handleSerialByte(int serialByte) {
 }
 
 void handleCommand(char *command) {
-  Serial.println(command);
-  btSerial.println(command);
-
+  
   if (strcmp(command, "TMP") == 0) {
     readTemperatureSensor();
     return;
@@ -106,3 +108,4 @@ void handleCommand(char *command) {
     return;
   }
 }
+
