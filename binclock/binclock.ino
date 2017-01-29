@@ -17,26 +17,41 @@ SoftwareSerial btSerial(rxPin, txPin);
 void setup() {
   Serial.begin(9600);
   btSerial.begin(9600);
+  setSyncProvider(RTC.get);
   pinMode(ledPin, OUTPUT);
 }
  
 void loop() {
   handleSerialByte(btSerial.read());
   //readTime();
-  readLux();
+  readLight();
 }
 
 void readTime() {
-  static time_t currentTime;
-  currentTime = RTC.get();
+  time_t currentTime = now();
+  char timeCharBuffer[20];
+  itoa(currentTime, timeCharBuffer, 10);
+
+  char timeResponse[50];
+  strcpy(timeResponse, "TIM");
+  strcat(timeResponse, timeCharBuffer);
+    
+  writeToBtSerial(timeResponse);
 }
 
-void readLux() {
+void readLight() {
   static unsigned long previousMillis = 0;
   if (millis() - previousMillis > luxReadInterval) {
     previousMillis = millis();
     Serial.println(analogRead(sensorPin));
   }
+}
+
+void readBrightnessSensor() {
+  int brightness = analogRead(sensorPin);
+  char brightnessCharBuffer[20];
+  itoa(brightness, brightnessCharBuffer, 10);
+  writeToBtSerial(brightnessCharBuffer);
 }
 
 void readTemperatureSensor() {
@@ -90,15 +105,24 @@ void handleSerialByte(int serialByte) {
 }
 
 void handleCommand(char *command) {
-  
-  if (strcmp(command, "TMP") == 0) {
+  if (strcmp(command, "TEMP") == 0) {
     readTemperatureSensor();
+    return;
+  }
+
+  if (strcmp(command, "TIME") == 0) {
+    readTime();
+    return;
+  }
+
+  if (strcmp(command, "LIGHT") == 0) {
+    readBrightnessSensor();
     return;
   }
   
   if (strcmp(command, "on") == 0){
     digitalWrite(ledPin,1);
-    writeToBtSerial("LED on Pin 13 is on");
+    writeToBtSerial("LED on üa Pinß 1ü3 is on");
     return;
   }
   
