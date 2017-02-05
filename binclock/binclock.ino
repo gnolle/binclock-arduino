@@ -29,13 +29,16 @@ void loop() {
 
 void readTime() {
   time_t currentTime = now();
+
+  Serial.println(currentTime);
+  
   char timeCharBuffer[20];
-  itoa(currentTime, timeCharBuffer, 10);
+  sprintf(timeCharBuffer, "%lu", currentTime);
 
   char timeResponse[50];
   strcpy(timeResponse, "TIM");
   strcat(timeResponse, timeCharBuffer);
-    
+
   writeToBtSerial(timeResponse);
 }
 
@@ -67,8 +70,6 @@ void readTemperatureSensor() {
     char tempResponse[50];
     strcpy(tempResponse, "TMP");
     strcat(tempResponse, floatCharBuffer);
-
-    Serial.println(tempResponse);
     
     //Serial.println(tempResponse);
     writeToBtSerial(tempResponse);
@@ -76,11 +77,14 @@ void readTemperatureSensor() {
 
 void setTimeFromCommand(char const *command) {
   const byte SETTIME_CMD_LENGTH = 7;
-  byte timestampDigits = strlen(command) - SETTIME_CMD_LENGTH);
+  byte timestampDigits = strlen(command) - SETTIME_CMD_LENGTH;
   char extractedTime[20];
   strncpy(extractedTime, command + SETTIME_CMD_LENGTH, timestampDigits);
   extractedTime[timestampDigits] = '\0';
-  Serial.print(extractedTime);
+
+  long newTime = atol(extractedTime);
+  setTime(newTime);
+  RTC.set(newTime);
 }
 
 void writeToBtSerial(char const *message) {
@@ -115,9 +119,9 @@ void handleSerialByte(int serialByte) {
 
 void handleCommand(char *command) {
 
-  if (strpre(command, "SETTIME")) {
+  if (strpre("SETTIME", command)) {
     setTimeFromCommand(command);
-    return
+    return;
   }
   
   if (strcmp(command, "TEMP") == 0) {
