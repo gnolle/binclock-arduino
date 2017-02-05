@@ -74,6 +74,15 @@ void readTemperatureSensor() {
     writeToBtSerial(tempResponse);
 }
 
+void setTimeFromCommand(char const *command) {
+  const byte SETTIME_CMD_LENGTH = 7;
+  byte timestampDigits = strlen(command) - SETTIME_CMD_LENGTH);
+  char extractedTime[20];
+  strncpy(extractedTime, command + SETTIME_CMD_LENGTH, timestampDigits);
+  extractedTime[timestampDigits] = '\0';
+  Serial.print(extractedTime);
+}
+
 void writeToBtSerial(char const *message) {
   // add CR and print to serial
   char response[50];
@@ -105,6 +114,12 @@ void handleSerialByte(int serialByte) {
 }
 
 void handleCommand(char *command) {
+
+  if (strpre(command, "SETTIME")) {
+    setTimeFromCommand(command);
+    return
+  }
+  
   if (strcmp(command, "TEMP") == 0) {
     readTemperatureSensor();
     return;
@@ -131,5 +146,9 @@ void handleCommand(char *command) {
     writeToBtSerial("LED on Pin 13 is off");
     return;
   }
+}
+
+boolean strpre(const char *pre, const char *str) {
+  return strncmp(pre, str, strlen(pre)) == 0;
 }
 
