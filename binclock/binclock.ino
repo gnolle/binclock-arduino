@@ -5,8 +5,29 @@
 #include <FastLED.h>
 
 #define NUM_LEDS 24
+#define NUM_LED_ROWS 4
 #define DATA_PIN 6
 #define INTERVAL 40 
+#define TIME_INTERVAL 1000
+
+// hour first digit
+byte hour_d1[4];
+
+// hour second digit
+byte hour_d2[4];
+
+// minute first digit
+byte minute_d1[4];
+
+// minute second digit
+byte minute_d2[4];
+
+// second first digit
+byte second_d1[4];
+
+// second second digit
+byte second_d2[4];
+
 
 #define MAX_CMD_LENGTH 80
 
@@ -20,21 +41,48 @@ byte thetas[24];
 SoftwareSerial btSerial(rxPin, txPin);
  
 void setup() {
+  initLedIndex();
   Serial.begin(9600);
   btSerial.begin(9600);
   setSyncProvider(RTC.get);
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
 }
+
+void initLedIndex() {
+  hour_d1[0] = 0;
+  hour_d1[1] = 11;
+  hour_d1[2] = 12;
+  hour_d1[3] = 23;  
+  hour_d2[0] = 1;
+  hour_d2[1] = 10;
+  hour_d2[2] = 13;
+  hour_d2[3] = 22;
+  minute_d1[0] = 2;
+  minute_d1[1] = 9;
+  minute_d1[2] = 14;
+  minute_d1[3] = 21;  
+  minute_d2[0] = 3;
+  minute_d2[1] = 8;
+  minute_d2[2] = 15;
+  minute_d2[3] = 20;
+  second_d1[0] = 4;
+  second_d1[1] = 7;
+  second_d1[2] = 16;
+  second_d1[3] = 19;
+  second_d2[0] = 5;
+  second_d2[1] = 6;
+  second_d2[2] = 17;
+  second_d2[3] = 18;
+}
  
 void loop() {
   handleSerialByte(btSerial.read());
-  lightLeds();
+  //lightLeds();
+  showTime();
 }
 
 void readTime() {
   time_t currentTime = now();
-
-  Serial.println(currentTime);
   
   char timeCharBuffer[20];
   sprintf(timeCharBuffer, "%lu", currentTime);
@@ -44,6 +92,53 @@ void readTime() {
   strcat(timeResponse, timeCharBuffer);
 
   writeToBtSerial(timeResponse);
+}
+
+void showTime() {
+
+  static unsigned long previousMillis = 0;
+  if (millis() - previousMillis > TIME_INTERVAL) {
+    previousMillis = millis();
+    FastLED.clear();
+
+    byte remainingHourDigit1 = (hour() + 1) / 10;
+    byte remainingHourDigit2 = (hour() + 1) % 10;
+    byte remainingMinuteDigit1 = minute() / 10;
+    byte remainingMinuteDigit2 = minute() % 10;
+    byte remainingSecondDigit1 = second() / 10;
+    byte remainingSecondDigit2 = second() % 10;
+  
+    for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
+      byte currentBinaryPower = pow(2, i);
+      if (remainingHourDigit1 > 0 && remainingHourDigit1 >= currentBinaryPower) {
+         remainingHourDigit1 -= currentBinaryPower;
+         leds[hour_d1[i]].setHSV(255, 255, 255);
+       }
+      if (remainingHourDigit2 > 0 && remainingHourDigit2 >= currentBinaryPower) {
+         remainingHourDigit2 -= currentBinaryPower;
+         leds[hour_d2[i]].setHSV(255, 255, 255);
+       }     
+       
+      if (remainingMinuteDigit1 > 0 && remainingMinuteDigit1 >= currentBinaryPower) {
+         remainingMinuteDigit1 -= currentBinaryPower;
+         leds[minute_d1[i]].setHSV(255, 255, 255);
+       }
+      if (remainingMinuteDigit2 > 0 && remainingMinuteDigit2 >= currentBinaryPower) {
+         remainingMinuteDigit2 -= currentBinaryPower;
+         leds[minute_d2[i]].setHSV(255, 255, 255);
+       }    
+       
+      if (remainingSecondDigit1 > 0 && remainingSecondDigit1 >= currentBinaryPower) {
+         remainingSecondDigit1 -= currentBinaryPower;
+         leds[second_d1[i]].setHSV(255, 255, 255);
+       }
+      if (remainingSecondDigit2 > 0 && remainingSecondDigit2 >= currentBinaryPower) {
+         remainingSecondDigit2 -= currentBinaryPower;
+         leds[second_d2[i]].setHSV(255, 255, 255);
+       }    
+    }
+    FastLED.show();
+  }
 }
 
 void lightLeds() {
