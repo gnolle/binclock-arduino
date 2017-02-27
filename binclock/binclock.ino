@@ -1,16 +1,21 @@
 #include <SoftwareSerial.h>
 #include <DS3232RTC.h>
 #include <Time.h>
-#include <Wire.h> 
+#include <Wire.h>
+#include <FastLED.h>
+
+#define NUM_LEDS 24
+#define DATA_PIN 6
+#define INTERVAL 40 
 
 #define MAX_CMD_LENGTH 80
 
-#define ledPin 13
 #define rxPin 10
 #define txPin 11
 
-int sensorPin = A0;
-unsigned long luxReadInterval = 5000UL;
+CRGB leds[NUM_LEDS];
+unsigned long timer;
+byte thetas[24];
  
 SoftwareSerial btSerial(rxPin, txPin);
  
@@ -18,13 +23,12 @@ void setup() {
   Serial.begin(9600);
   btSerial.begin(9600);
   setSyncProvider(RTC.get);
-  pinMode(ledPin, OUTPUT);
+  FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
 }
  
 void loop() {
   handleSerialByte(btSerial.read());
-  //readTime();
-  readLight();
+  lightLeds();
 }
 
 void readTime() {
@@ -42,19 +46,19 @@ void readTime() {
   writeToBtSerial(timeResponse);
 }
 
-void readLight() {
+void lightLeds() {
+  static byte phase = 0;
   static unsigned long previousMillis = 0;
-  if (millis() - previousMillis > luxReadInterval) {
+  if (millis() - previousMillis > INTERVAL) {
     previousMillis = millis();
-    Serial.println(analogRead(sensorPin));
+    FastLED.clear();
+    for (int i = 0; i < NUM_LEDS; i++) {
+      leds[i].setHSV(255, 255, sin8(phase + thetas[i]));  
+      //leds[i].setHSV(255, 255, map(sin8(phase + thetas[i]), 0, 255, lowerBoundary, upperBoundary));  
+    }
+    phase++;
+    FastLED.show();
   }
-}
-
-void readBrightnessSensor() {
-  int brightness = analogRead(sensorPin);
-  char brightnessCharBuffer[20];
-  itoa(brightness, brightnessCharBuffer, 10);
-  writeToBtSerial(brightnessCharBuffer);
 }
 
 void readTemperatureSensor() {
@@ -131,23 +135,6 @@ void handleCommand(char *command) {
 
   if (strcmp(command, "TIME") == 0) {
     readTime();
-    return;
-  }
-
-  if (strcmp(command, "LIGHT") == 0) {
-    readBrightnessSensor();
-    return;
-  }
-  
-  if (strcmp(command, "on") == 0){
-    digitalWrite(ledPin,1);
-    writeToBtSerial("LED on üa Pinß 1ü3 is on");
-    return;
-  }
-  
-  if (strcmp(command, "off") == 0){
-    digitalWrite(ledPin,0);
-    writeToBtSerial("LED on Pin 13 is off");
     return;
   }
 }
