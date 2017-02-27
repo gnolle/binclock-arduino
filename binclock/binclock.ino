@@ -10,6 +10,8 @@
 #define INTERVAL 40 
 #define TIME_INTERVAL 1000
 
+const byte pows[] = {1, 2, 4, 8};
+
 // hour first digit
 byte hour_d1[4];
 
@@ -52,23 +54,28 @@ void initLedIndex() {
   hour_d1[0] = 0;
   hour_d1[1] = 11;
   hour_d1[2] = 12;
-  hour_d1[3] = 23;  
+  hour_d1[3] = 23;
+    
   hour_d2[0] = 1;
   hour_d2[1] = 10;
   hour_d2[2] = 13;
   hour_d2[3] = 22;
+  
   minute_d1[0] = 2;
   minute_d1[1] = 9;
   minute_d1[2] = 14;
-  minute_d1[3] = 21;  
+  minute_d1[3] = 21;
+    
   minute_d2[0] = 3;
   minute_d2[1] = 8;
   minute_d2[2] = 15;
   minute_d2[3] = 20;
+  
   second_d1[0] = 4;
   second_d1[1] = 7;
   second_d1[2] = 16;
   second_d1[3] = 19;
+  
   second_d2[0] = 5;
   second_d2[1] = 6;
   second_d2[2] = 17;
@@ -109,7 +116,7 @@ void showTime() {
     byte remainingSecondDigit2 = second() % 10;
   
     for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
-      byte currentBinaryPower = pow(2, i);
+      int currentBinaryPower = pows[i];
       if (remainingHourDigit1 > 0 && remainingHourDigit1 >= currentBinaryPower) {
          remainingHourDigit1 -= currentBinaryPower;
          leds[hour_d1[i]].setHSV(255, 255, 255);
@@ -118,7 +125,7 @@ void showTime() {
          remainingHourDigit2 -= currentBinaryPower;
          leds[hour_d2[i]].setHSV(255, 255, 255);
        }     
-       
+  
       if (remainingMinuteDigit1 > 0 && remainingMinuteDigit1 >= currentBinaryPower) {
          remainingMinuteDigit1 -= currentBinaryPower;
          leds[minute_d1[i]].setHSV(255, 255, 255);
