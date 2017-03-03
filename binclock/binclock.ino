@@ -7,28 +7,27 @@
 #define NUM_LEDS 24
 #define NUM_LED_ROWS 4
 #define DATA_PIN 6
-#define INTERVAL 40 
 #define TIME_INTERVAL 1000
 
 const byte pows[] = {1, 2, 4, 8};
 
 // hour first digit
-byte hour_d1[4];
+const byte hour_d1[4] = {0, 11, 12, 23};
 
 // hour second digit
-byte hour_d2[4];
+const byte hour_d2[4] = {1, 10, 13, 22};
 
 // minute first digit
-byte minute_d1[4];
+const byte minute_d1[4] = {2, 9, 14, 21};
 
 // minute second digit
-byte minute_d2[4];
+const byte minute_d2[4] = {3, 8, 15, 20};
 
 // second first digit
-byte second_d1[4];
+const byte second_d1[4] = {4, 7, 16, 19};
 
 // second second digit
-byte second_d2[4];
+const byte second_d2[4] = {5, 6, 17, 18};
 
 
 #define MAX_CMD_LENGTH 80
@@ -36,55 +35,22 @@ byte second_d2[4];
 #define rxPin 10
 #define txPin 11
 
+byte clockColor[] = {255, 255, 255};
+
 CRGB leds[NUM_LEDS];
 unsigned long timer;
-byte thetas[24];
  
 SoftwareSerial btSerial(rxPin, txPin);
  
 void setup() {
-  initLedIndex();
   Serial.begin(9600);
   btSerial.begin(9600);
   setSyncProvider(RTC.get);
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
 }
-
-void initLedIndex() {
-  hour_d1[0] = 0;
-  hour_d1[1] = 11;
-  hour_d1[2] = 12;
-  hour_d1[3] = 23;
-    
-  hour_d2[0] = 1;
-  hour_d2[1] = 10;
-  hour_d2[2] = 13;
-  hour_d2[3] = 22;
-  
-  minute_d1[0] = 2;
-  minute_d1[1] = 9;
-  minute_d1[2] = 14;
-  minute_d1[3] = 21;
-    
-  minute_d2[0] = 3;
-  minute_d2[1] = 8;
-  minute_d2[2] = 15;
-  minute_d2[3] = 20;
-  
-  second_d1[0] = 4;
-  second_d1[1] = 7;
-  second_d1[2] = 16;
-  second_d1[3] = 19;
-  
-  second_d2[0] = 5;
-  second_d2[1] = 6;
-  second_d2[2] = 17;
-  second_d2[3] = 18;
-}
  
 void loop() {
   handleSerialByte(btSerial.read());
-  //lightLeds();
   showTime();
 }
 
@@ -102,8 +68,8 @@ void readTime() {
 }
 
 void showTime() {
-
   static unsigned long previousMillis = 0;
+
   if (millis() - previousMillis > TIME_INTERVAL) {
     previousMillis = millis();
     FastLED.clear();
@@ -148,21 +114,6 @@ void showTime() {
   }
 }
 
-void lightLeds() {
-  static byte phase = 0;
-  static unsigned long previousMillis = 0;
-  if (millis() - previousMillis > INTERVAL) {
-    previousMillis = millis();
-    FastLED.clear();
-    for (int i = 0; i < NUM_LEDS; i++) {
-      leds[i].setHSV(255, 255, sin8(phase + thetas[i]));  
-      //leds[i].setHSV(255, 255, map(sin8(phase + thetas[i]), 0, 255, lowerBoundary, upperBoundary));  
-    }
-    phase++;
-    FastLED.show();
-  }
-}
-
 void readTemperatureSensor() {
     float sensorReading = RTC.temperature() / 4.0;
 
@@ -177,7 +128,6 @@ void readTemperatureSensor() {
     strcpy(tempResponse, "TMP");
     strcat(tempResponse, floatCharBuffer);
     
-    //Serial.println(tempResponse);
     writeToBtSerial(tempResponse);
 }
 
@@ -191,6 +141,25 @@ void setTimeFromCommand(char const *command) {
   long newTime = atol(extractedTime);
   setTime(newTime);
   RTC.set(newTime);
+}
+
+void setColorFromCommand(char const *command) {
+  const byte SETCOLOR_CMD_LENGTH = 8;
+  byte hsvDigits = strlen(command) - SETCOLOR_CMD_LENGTH;
+  char extractedHsv[11];
+  strncpy(extractedHsv, command + SETTIME_CMD_LENGTH + 1, hsvDigits);
+
+  char delimiter[] = ",";
+  char *part;
+  part = strtok(string, delimiter);
+
+  byte i = 0;
+  while (part != NULL) {
+    Serial.println(part);
+    part = strtok(NULL, delimiter);
+    clockColor[i] = atoi(part);
+  }
+
 }
 
 void writeToBtSerial(char const *message) {
@@ -227,6 +196,11 @@ void handleCommand(char *command) {
 
   if (strpre("SETTIME", command)) {
     setTimeFromCommand(command);
+    return;
+  }
+
+  if (strpre("SETCOLOR", command)) {
+    setColorFromCommand(command);
     return;
   }
   
