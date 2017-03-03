@@ -147,7 +147,7 @@ void setColorFromCommand(char const *command) {
   const byte SETCOLOR_CMD_LENGTH = 8;
   byte hsvDigits = strlen(command) - SETCOLOR_CMD_LENGTH;
   char extractedHsv[11];
-  strncpy(extractedHsv, command + SETTIME_CMD_LENGTH + 1, hsvDigits);
+  strncpy(extractedHsv, command + SETTIME_CMD_LENGTH, hsvDigits);
 
   char delimiter[] = ",";
   char *part;
