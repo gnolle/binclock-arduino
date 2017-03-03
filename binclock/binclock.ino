@@ -85,29 +85,29 @@ void showTime() {
       int currentBinaryPower = pows[i];
       if (remainingHourDigit1 > 0 && remainingHourDigit1 >= currentBinaryPower) {
          remainingHourDigit1 -= currentBinaryPower;
-         leds[hour_d1[i]].setHSV(255, 255, 255);
+         leds[hour_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
        }
       if (remainingHourDigit2 > 0 && remainingHourDigit2 >= currentBinaryPower) {
          remainingHourDigit2 -= currentBinaryPower;
-         leds[hour_d2[i]].setHSV(255, 255, 255);
+         leds[hour_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
        }     
   
       if (remainingMinuteDigit1 > 0 && remainingMinuteDigit1 >= currentBinaryPower) {
          remainingMinuteDigit1 -= currentBinaryPower;
-         leds[minute_d1[i]].setHSV(255, 255, 255);
+         leds[minute_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
        }
       if (remainingMinuteDigit2 > 0 && remainingMinuteDigit2 >= currentBinaryPower) {
          remainingMinuteDigit2 -= currentBinaryPower;
-         leds[minute_d2[i]].setHSV(255, 255, 255);
+         leds[minute_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
        }    
        
       if (remainingSecondDigit1 > 0 && remainingSecondDigit1 >= currentBinaryPower) {
          remainingSecondDigit1 -= currentBinaryPower;
-         leds[second_d1[i]].setHSV(255, 255, 255);
+         leds[second_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
        }
       if (remainingSecondDigit2 > 0 && remainingSecondDigit2 >= currentBinaryPower) {
          remainingSecondDigit2 -= currentBinaryPower;
-         leds[second_d2[i]].setHSV(255, 255, 255);
+         leds[second_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
        }    
     }
     FastLED.show();
@@ -158,6 +158,7 @@ void setColorFromCommand(char const *command) {
     Serial.println(part);
     part = strtok(NULL, delimiter);
     clockColor[i] = atoi(part);
+    i++;
   }
 
 }
