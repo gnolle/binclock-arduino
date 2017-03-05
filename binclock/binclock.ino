@@ -6,7 +6,7 @@
 
 #define NUM_LEDS 24
 #define NUM_LED_ROWS 4
-#define DATA_PIN 6
+#define DATA_PIN 7
 #define TIME_INTERVAL 1000
 
 const byte pows[] = {1, 2, 4, 8};
@@ -32,8 +32,8 @@ const byte second_d2[4] = {5, 6, 17, 18};
 
 #define MAX_CMD_LENGTH 80
 
-#define rxPin 10
-#define txPin 11
+#define rxPin 11
+#define txPin 10
 
 byte clockColor[] = {255, 255, 255};
 
@@ -144,20 +144,20 @@ void setTimeFromCommand(char const *command) {
 }
 
 void setColorFromCommand(char const *command) {
+  
   const byte SETCOLOR_CMD_LENGTH = 8;
   byte hsvDigits = strlen(command) - SETCOLOR_CMD_LENGTH;
   char extractedHsv[11];
-  strncpy(extractedHsv, command + SETTIME_CMD_LENGTH, hsvDigits);
+  strncpy(extractedHsv, command + SETCOLOR_CMD_LENGTH, hsvDigits);
 
   char delimiter[] = ",";
   char *part;
-  part = strtok(string, delimiter);
+  part = strtok(extractedHsv, delimiter);
 
   byte i = 0;
   while (part != NULL) {
-    Serial.println(part);
-    part = strtok(NULL, delimiter);
     clockColor[i] = atoi(part);
+    part = strtok(NULL, delimiter);
     i++;
   }
 
