@@ -128,7 +128,7 @@ void showTimeAndTemperature() {
     FastLED.clear();
 
     float sensorReading = RTC.temperature() / 4.0;
-    int roundedTemperature = sensorReading + 0.5;
+    byte roundedTemperature = (byte) (sensorReading + 0.5);
 
     byte remainingHourDigit1 = (hour() + 1) / 10;
     byte remainingHourDigit2 = (hour() + 1) % 10;
