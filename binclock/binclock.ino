@@ -37,6 +37,8 @@ const byte second_d2[4] = {5, 6, 17, 18};
 
 byte clockColor[] = {255, 255, 255};
 
+byte mode = 0;
+
 CRGB leds[NUM_LEDS];
 unsigned long timer;
  
@@ -51,7 +53,11 @@ void setup() {
  
 void loop() {
   handleSerialByte(btSerial.read());
-  showTime();
+  if (mode == 0) {
+    showTime();
+  } else {
+    showTimeAndTemperature();
+  }
 }
 
 void readTime() {
@@ -114,6 +120,56 @@ void showTime() {
   }
 }
 
+void showTimeAndTemperature() {
+  static unsigned long previousMillis = 0;
+
+  if (millis() - previousMillis > TIME_INTERVAL) {
+    previousMillis = millis();
+    FastLED.clear();
+
+    float sensorReading = RTC.temperature() / 4.0;
+    int roundedTemperature = sensorReading + 0.5;
+
+    byte remainingHourDigit1 = (hour() + 1) / 10;
+    byte remainingHourDigit2 = (hour() + 1) % 10;
+    byte remainingMinuteDigit1 = minute() / 10;
+    byte remainingMinuteDigit2 = minute() % 10;
+    byte remainingTemperatureDigit1 = roundedTemperature / 10;
+    byte remainingTemperatureDigit2 = roundedTemperature % 10;
+  
+    for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
+      int currentBinaryPower = pows[i];
+      if (remainingHourDigit1 > 0 && remainingHourDigit1 >= currentBinaryPower) {
+         remainingHourDigit1 -= currentBinaryPower;
+         leds[hour_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
+       }
+      if (remainingHourDigit2 > 0 && remainingHourDigit2 >= currentBinaryPower) {
+         remainingHourDigit2 -= currentBinaryPower;
+         leds[hour_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
+       }     
+  
+      if (remainingMinuteDigit1 > 0 && remainingMinuteDigit1 >= currentBinaryPower) {
+         remainingMinuteDigit1 -= currentBinaryPower;
+         leds[minute_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
+       }
+      if (remainingMinuteDigit2 > 0 && remainingMinuteDigit2 >= currentBinaryPower) {
+         remainingMinuteDigit2 -= currentBinaryPower;
+         leds[minute_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
+       }    
+       
+      if (remainingTemperatureDigit1 > 0 && remainingTemperatureDigit1 >= currentBinaryPower) {
+         remainingTemperatureDigit1 -= currentBinaryPower;
+         leds[second_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
+       }
+      if (remainingTemperatureDigit2 > 0 && remainingTemperatureDigit2 >= currentBinaryPower) {
+         remainingTemperatureDigit2 -= currentBinaryPower;
+         leds[second_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
+       }    
+    }
+    FastLED.show();
+  }
+}
+
 void readTemperatureSensor() {
     float sensorReading = RTC.temperature() / 4.0;
 
@@ -144,11 +200,11 @@ void setTimeFromCommand(char const *command) {
 }
 
 void setColorFromCommand(char const *command) {
-  
   const byte SETCOLOR_CMD_LENGTH = 8;
   byte hsvDigits = strlen(command) - SETCOLOR_CMD_LENGTH;
-  char extractedHsv[11];
+  char extractedHsv[20];
   strncpy(extractedHsv, command + SETCOLOR_CMD_LENGTH, hsvDigits);
+  extractedTime[hsvDigits] = '\0';
 
   char delimiter[] = ",";
   char *part;
@@ -161,6 +217,16 @@ void setColorFromCommand(char const *command) {
     i++;
   }
 
+}
+
+void setModeFromCommand(char const *command) {
+  const byte SETMODE_CMD_LENGTH = 7;
+  byte modeDigits = strlen(command) - SETMODE_CMD_LENGTH;
+  char extractedMode[5];
+  strncpy(extractedMode, command + SETMODE_CMD_LENGTH, modeDigits);
+  extractedMode[modeDigits] = '\0';
+
+  mode = atoi(extractedMode);
 }
 
 void writeToBtSerial(char const *message) {
@@ -194,6 +260,11 @@ void handleSerialByte(int serialByte) {
 }
 
 void handleCommand(char *command) {
+
+  if (strpre("SETMODE", command)) {
+    setModeFromCommand(command);
+    return;
+  }
 
   if (strpre("SETTIME", command)) {
     setTimeFromCommand(command);
