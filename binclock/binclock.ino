@@ -36,6 +36,7 @@ const byte second_d2[4] = {5, 6, 17, 18};
 #define txPin 10
 
 byte clockColor[] = {255, 255, 255};
+byte brightness = 64;
 
 byte mode = 0;
 
@@ -49,6 +50,7 @@ void setup() {
   btSerial.begin(9600);
   setSyncProvider(RTC.get);
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
+  FastLED.setBrightness(brightness);
 }
  
 void loop() {
@@ -204,7 +206,7 @@ void setColorFromCommand(char const *command) {
   byte hsvDigits = strlen(command) - SETCOLOR_CMD_LENGTH;
   char extractedHsv[20];
   strncpy(extractedHsv, command + SETCOLOR_CMD_LENGTH, hsvDigits);
-  extractedTime[hsvDigits] = '\0';
+  extractedHsv[hsvDigits] = '\0';
 
   char delimiter[] = ",";
   char *part;
@@ -227,6 +229,17 @@ void setModeFromCommand(char const *command) {
   extractedMode[modeDigits] = '\0';
 
   mode = atoi(extractedMode);
+}
+
+void setBrightnessFromCommand(char const *command) {
+  const byte SETBRIGHT_CMD_LENGTH = 9;
+  byte brightDigits = strlen(command) - SETBRIGHT_CMD_LENGTH;
+  char extractedBrightness[4];
+  strncpy(extractedBrightness, command + SETBRIGHT_CMD_LENGTH, brightDigits);
+  extractedBrightness[brightDigits] = '\0';
+
+  brightness = atoi(extractedBrightness);
+  FastLED.setBrightness(brightness);
 }
 
 void writeToBtSerial(char const *message) {
@@ -265,6 +278,11 @@ void handleCommand(char *command) {
     setModeFromCommand(command);
     return;
   }
+
+  if (strpre("SETBRIGHT", command)) {
+    setBrightnessFromCommand(command);
+    return;
+  }  
 
   if (strpre("SETTIME", command)) {
     setTimeFromCommand(command);
