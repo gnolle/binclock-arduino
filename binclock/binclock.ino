@@ -80,7 +80,7 @@ void showTime() {
 
   if (millis() - previousMillis > TIME_INTERVAL) {
     previousMillis = millis();
-    FastLED.clear();
+    fill_solid(leds, NUM_LEDS, CHSV(clockColor[0], clockColor[1], clockColor[2] / 2));
 
     byte remainingHourDigit1 = (hour() + 1) / 10;
     byte remainingHourDigit2 = (hour() + 1) % 10;
@@ -127,7 +127,7 @@ void showTimeAndTemperature() {
 
   if (millis() - previousMillis > TIME_INTERVAL) {
     previousMillis = millis();
-    FastLED.clear();
+    fill_solid(leds, NUM_LEDS, CHSV(clockColor[0], clockColor[1], clockColor[2] / 2));
 
     float sensorReading = RTC.temperature() / 4.0;
     byte roundedTemperature = (byte) (sensorReading + 0.5);
