@@ -1,6 +1,7 @@
 #include <SoftwareSerial.h>
 #include <DS3232RTC.h>
 #include <Time.h>
+#include <Timezone.h>
 #include <Wire.h>
 #include <FastLED.h>
 
@@ -35,8 +36,7 @@ const byte second_d2[4] = {5, 6, 17, 18};
 #define rxPin 11
 #define txPin 10
 
-byte clockColor[] = {255, 255, 255};
-byte brightness = 64;
+byte clockColor[3];
 
 byte mode = 0;
 
@@ -50,7 +50,21 @@ void setup() {
   btSerial.begin(9600);
   setSyncProvider(RTC.get);
   FastLED.addLeds<NEOPIXEL, DATA_PIN>(leds, NUM_LEDS);
-  FastLED.setBrightness(brightness);
+  initClockColor();
+}
+
+time_t getLocalTime() {
+  static TimeChangeRule germanSummerTime = {"DEUS", Last, Sun, Mar, 2, 120};
+  static TimeChangeRule germanWinterTime = {"WINS", Last, Sun, Oct, 3, 60};
+  static Timezone germanTime(germanSummerTime, germanWinterTime);
+  time_t localTime = germanTime.toLocal(now());
+  return localTime;
+}
+
+void initClockColor() {
+  clockColor[0] = random(256);
+  clockColor[1] = 255;
+  clockColor[2] = 255;
 }
  
 void loop() {
@@ -63,10 +77,8 @@ void loop() {
 }
 
 void readTime() {
-  time_t currentTime = now();
-  
   char timeCharBuffer[20];
-  sprintf(timeCharBuffer, "%lu", currentTime);
+  sprintf(timeCharBuffer, "%lu", now());
 
   char timeResponse[50];
   strcpy(timeResponse, "TIM");
@@ -81,13 +93,15 @@ void showTime() {
   if (millis() - previousMillis > TIME_INTERVAL) {
     previousMillis = millis();
     fill_solid(leds, NUM_LEDS, CHSV(clockColor[0], clockColor[1], clockColor[2] / 2));
+    
+    time_t localTime = getLocalTime();
 
-    byte remainingHourDigit1 = (hour() + 1) / 10;
-    byte remainingHourDigit2 = (hour() + 1) % 10;
-    byte remainingMinuteDigit1 = minute() / 10;
-    byte remainingMinuteDigit2 = minute() % 10;
-    byte remainingSecondDigit1 = second() / 10;
-    byte remainingSecondDigit2 = second() % 10;
+    byte remainingHourDigit1 = hour(localTime) / 10;
+    byte remainingHourDigit2 = hour(localTime) % 10;
+    byte remainingMinuteDigit1 = minute(localTime) / 10;
+    byte remainingMinuteDigit2 = minute(localTime) % 10;
+    byte remainingSecondDigit1 = second(localTime) / 10;
+    byte remainingSecondDigit2 = second(localTime) % 10;
   
     for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
       int currentBinaryPower = pows[i];
@@ -132,10 +146,12 @@ void showTimeAndTemperature() {
     float sensorReading = RTC.temperature() / 4.0;
     byte roundedTemperature = (byte) (sensorReading + 0.5);
 
-    byte remainingHourDigit1 = (hour() + 1) / 10;
-    byte remainingHourDigit2 = (hour() + 1) % 10;
-    byte remainingMinuteDigit1 = minute() / 10;
-    byte remainingMinuteDigit2 = minute() % 10;
+    time_t localTime = getLocalTime();
+
+    byte remainingHourDigit1 = hour(localTime) / 10;
+    byte remainingHourDigit2 = hour(localTime) % 10;
+    byte remainingMinuteDigit1 = minute(localTime) / 10;
+    byte remainingMinuteDigit2 = minute(localTime) % 10;
     byte remainingTemperatureDigit1 = roundedTemperature / 10;
     byte remainingTemperatureDigit2 = roundedTemperature % 10;
   
@@ -231,17 +247,6 @@ void setModeFromCommand(char const *command) {
   mode = atoi(extractedMode);
 }
 
-void setBrightnessFromCommand(char const *command) {
-  const byte SETBRIGHT_CMD_LENGTH = 9;
-  byte brightDigits = strlen(command) - SETBRIGHT_CMD_LENGTH;
-  char extractedBrightness[4];
-  strncpy(extractedBrightness, command + SETBRIGHT_CMD_LENGTH, brightDigits);
-  extractedBrightness[brightDigits] = '\0';
-
-  brightness = atoi(extractedBrightness);
-  FastLED.setBrightness(brightness);
-}
-
 void writeToBtSerial(char const *message) {
   // add CR and print to serial
   char response[50];
@@ -278,11 +283,6 @@ void handleCommand(char *command) {
     setModeFromCommand(command);
     return;
   }
-
-  if (strpre("SETBRIGHT", command)) {
-    setBrightnessFromCommand(command);
-    return;
-  }  
 
   if (strpre("SETTIME", command)) {
     setTimeFromCommand(command);
