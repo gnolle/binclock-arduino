@@ -7,6 +7,7 @@
 
 #define NUM_LEDS 24
 #define NUM_LED_ROWS 4
+#define NUM_LED_COLS 6
 #define DATA_PIN 7
 #define TIME_INTERVAL 1000
 
@@ -36,15 +37,23 @@ const byte second_d2[4] = {5, 6, 17, 18};
 #define rxPin 11
 #define txPin 10
 
-byte clockColor[3];
+byte singleClockColor[3];
 
-byte mode = 0;
+byte rowColors[4][3] = {
+    {0, 255, 255},
+    {96, 255, 255},
+    {140, 255, 255},
+    {213, 255, 255}
+  };
+
+byte displayMode = 0;
+byte colorMode = 1;
 
 CRGB leds[NUM_LEDS];
 unsigned long timer;
- 
+
 SoftwareSerial btSerial(rxPin, txPin);
- 
+
 void setup() {
   Serial.begin(9600);
   btSerial.begin(9600);
@@ -62,14 +71,14 @@ time_t getLocalTime() {
 }
 
 void initClockColor() {
-  clockColor[0] = random(256);
-  clockColor[1] = 255;
-  clockColor[2] = 255;
+  singleClockColor[0] = random(256);
+  singleClockColor[1] = 255;
+  singleClockColor[2] = 255;
 }
- 
+
 void loop() {
   handleSerialByte(btSerial.read());
-  if (mode == 0) {
+  if (displayMode == 0) {
     showTime();
   } else {
     showTimeAndTemperature();
@@ -92,8 +101,6 @@ void showTime() {
 
   if (millis() - previousMillis > TIME_INTERVAL) {
     previousMillis = millis();
-    fill_solid(leds, NUM_LEDS, CHSV(clockColor[0], clockColor[1], clockColor[2] / 2));
-    
     time_t localTime = getLocalTime();
 
     byte remainingHourDigit1 = hour(localTime) / 10;
@@ -102,37 +109,17 @@ void showTime() {
     byte remainingMinuteDigit2 = minute(localTime) % 10;
     byte remainingSecondDigit1 = second(localTime) / 10;
     byte remainingSecondDigit2 = second(localTime) % 10;
-  
-    for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
-      int currentBinaryPower = pows[i];
-      if (remainingHourDigit1 > 0 && remainingHourDigit1 >= currentBinaryPower) {
-         remainingHourDigit1 -= currentBinaryPower;
-         leds[hour_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }
-      if (remainingHourDigit2 > 0 && remainingHourDigit2 >= currentBinaryPower) {
-         remainingHourDigit2 -= currentBinaryPower;
-         leds[hour_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }     
-  
-      if (remainingMinuteDigit1 > 0 && remainingMinuteDigit1 >= currentBinaryPower) {
-         remainingMinuteDigit1 -= currentBinaryPower;
-         leds[minute_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }
-      if (remainingMinuteDigit2 > 0 && remainingMinuteDigit2 >= currentBinaryPower) {
-         remainingMinuteDigit2 -= currentBinaryPower;
-         leds[minute_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }    
-       
-      if (remainingSecondDigit1 > 0 && remainingSecondDigit1 >= currentBinaryPower) {
-         remainingSecondDigit1 -= currentBinaryPower;
-         leds[second_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }
-      if (remainingSecondDigit2 > 0 && remainingSecondDigit2 >= currentBinaryPower) {
-         remainingSecondDigit2 -= currentBinaryPower;
-         leds[second_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }    
-    }
-    FastLED.show();
+
+    byte displayValues[] = {
+      remainingHourDigit1,
+      remainingHourDigit2,
+      remainingMinuteDigit1,
+      remainingMinuteDigit2,
+      remainingSecondDigit1,
+      remainingSecondDigit2
+    };
+
+    displayDigitsForRows(displayValues);
   }
 }
 
@@ -141,7 +128,6 @@ void showTimeAndTemperature() {
 
   if (millis() - previousMillis > TIME_INTERVAL) {
     previousMillis = millis();
-    fill_solid(leds, NUM_LEDS, CHSV(clockColor[0], clockColor[1], clockColor[2] / 2));
 
     float sensorReading = RTC.temperature() / 4.0;
     byte roundedTemperature = (byte) (sensorReading + 0.5);
@@ -154,55 +140,102 @@ void showTimeAndTemperature() {
     byte remainingMinuteDigit2 = minute(localTime) % 10;
     byte remainingTemperatureDigit1 = roundedTemperature / 10;
     byte remainingTemperatureDigit2 = roundedTemperature % 10;
-  
-    for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
-      int currentBinaryPower = pows[i];
-      if (remainingHourDigit1 > 0 && remainingHourDigit1 >= currentBinaryPower) {
-         remainingHourDigit1 -= currentBinaryPower;
-         leds[hour_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }
-      if (remainingHourDigit2 > 0 && remainingHourDigit2 >= currentBinaryPower) {
-         remainingHourDigit2 -= currentBinaryPower;
-         leds[hour_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }     
-  
-      if (remainingMinuteDigit1 > 0 && remainingMinuteDigit1 >= currentBinaryPower) {
-         remainingMinuteDigit1 -= currentBinaryPower;
-         leds[minute_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }
-      if (remainingMinuteDigit2 > 0 && remainingMinuteDigit2 >= currentBinaryPower) {
-         remainingMinuteDigit2 -= currentBinaryPower;
-         leds[minute_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }    
-       
-      if (remainingTemperatureDigit1 > 0 && remainingTemperatureDigit1 >= currentBinaryPower) {
-         remainingTemperatureDigit1 -= currentBinaryPower;
-         leds[second_d1[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }
-      if (remainingTemperatureDigit2 > 0 && remainingTemperatureDigit2 >= currentBinaryPower) {
-         remainingTemperatureDigit2 -= currentBinaryPower;
-         leds[second_d2[i]].setHSV(clockColor[0], clockColor[1], clockColor[2]);
-       }    
-    }
-    FastLED.show();
+
+    byte displayValues[] = {
+      remainingHourDigit1,
+      remainingHourDigit2,
+      remainingMinuteDigit1,
+      remainingMinuteDigit2,
+      remainingTemperatureDigit1,
+      remainingTemperatureDigit2
+    };
+
+    displayDigitsForRows(displayValues);
   }
 }
 
+void displayDigitsForRows(byte rowValues[6]) {
+  colorBackgroundLeds();
+
+  for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
+    int currentBinaryPower = pows[i];
+    if (rowValues[0] > 0 && rowValues[0] >= currentBinaryPower) {
+      rowValues[0] -= currentBinaryPower;
+      colorLedAtPosition(hour_d1[i]);
+    }
+    if (rowValues[1] > 0 && rowValues[1] >= currentBinaryPower) {
+      rowValues[1] -= currentBinaryPower;
+      colorLedAtPosition(hour_d2[i]);
+    }
+
+    if (rowValues[2] > 0 && rowValues[2] >= currentBinaryPower) {
+      rowValues[2] -= currentBinaryPower;
+      colorLedAtPosition(minute_d1[i]);
+    }
+    if (rowValues[3] > 0 && rowValues[3] >= currentBinaryPower) {
+      rowValues[3] -= currentBinaryPower;
+      colorLedAtPosition(minute_d2[i]);
+    }
+
+    if (rowValues[4] > 0 && rowValues[4] >= currentBinaryPower) {
+      rowValues[4] -= currentBinaryPower;
+      colorLedAtPosition(second_d1[i]);
+    }
+    if (rowValues[5] > 0 && rowValues[5] >= currentBinaryPower) {
+      rowValues[5] -= currentBinaryPower;
+      colorLedAtPosition(second_d2[i]);
+    }
+  }
+  FastLED.show();
+}
+
+void colorBackgroundLeds() {
+    switch (colorMode) {
+    case 0:
+      fill_solid(leds, NUM_LEDS, CHSV(singleClockColor[0], singleClockColor[1], singleClockColor[2] / 2));
+      break;
+    case 1:
+      for (int i = 0; i < NUM_LEDS; i++) {
+        leds[i].setHSV(rowColors[i / NUM_LED_COLS][0], rowColors[i / NUM_LED_COLS][1], rowColors[i / NUM_LED_COLS][2] / 2);
+      }
+      break;
+  }
+}
+
+void colorLedAtPosition(int position) {
+  switch (colorMode) {
+    case 0:
+      singleColorLed(position);
+      break;
+    case 1:
+      rowColorLed(position);
+      break;      
+  }
+}
+
+void singleColorLed(int position) {
+  leds[position].setHSV(singleClockColor[0], singleClockColor[1], singleClockColor[2]);
+}
+
+void rowColorLed(int position) {
+  leds[position].setHSV(rowColors[position / NUM_LED_COLS][0], rowColors[position / NUM_LED_COLS][1], rowColors[position / NUM_LED_COLS][2]);
+}
+
 void readTemperatureSensor() {
-    float sensorReading = RTC.temperature() / 4.0;
+  float sensorReading = RTC.temperature() / 4.0;
 
-    // convert reading to char[]
-    char floatCharBuffer[20];
-    dtostrf(sensorReading, 1, 2, floatCharBuffer);
+  // convert reading to char[]
+  char floatCharBuffer[20];
+  dtostrf(sensorReading, 1, 2, floatCharBuffer);
 
-    Serial.println(floatCharBuffer);
+  Serial.println(floatCharBuffer);
 
-    // build response (i.e. "TMP19.75")
-    char tempResponse[50];
-    strcpy(tempResponse, "TMP");
-    strcat(tempResponse, floatCharBuffer);
-    
-    writeToBtSerial(tempResponse);
+  // build response (i.e. "TMP19.75")
+  char tempResponse[50];
+  strcpy(tempResponse, "TMP");
+  strcat(tempResponse, floatCharBuffer);
+
+  writeToBtSerial(tempResponse);
 }
 
 void setTimeFromCommand(char const *command) {
@@ -230,7 +263,7 @@ void setColorFromCommand(char const *command) {
 
   byte i = 0;
   while (part != NULL) {
-    clockColor[i] = atoi(part);
+    singleClockColor[i] = atoi(part);
     part = strtok(NULL, delimiter);
     i++;
   }
@@ -244,7 +277,17 @@ void setModeFromCommand(char const *command) {
   strncpy(extractedMode, command + SETMODE_CMD_LENGTH, modeDigits);
   extractedMode[modeDigits] = '\0';
 
-  mode = atoi(extractedMode);
+  displayMode = atoi(extractedMode);
+}
+
+void setCodeFromCommand(char const *command) {
+  const byte SETCODE_CMD_LENGTH = 7;
+  byte codeDigits = strlen(command) - SETCODE_CMD_LENGTH;
+  char extractedCode[5];
+  strncpy(extractedCode, command + SETCODE_CMD_LENGTH, codeDigits);
+  extractedCode[codeDigits] = '\0';
+
+  colorMode = atoi(extractedCode);
 }
 
 void writeToBtSerial(char const *message) {
@@ -260,7 +303,7 @@ void handleSerialByte(int serialByte) {
   static char buffer[MAX_CMD_LENGTH];
 
   if (serialByte > 0) {
-    switch(serialByte) {
+    switch (serialByte) {
       case '\n':
         break;
       case '\r':
@@ -284,6 +327,11 @@ void handleCommand(char *command) {
     return;
   }
 
+  if (strpre("SETCODE", command)) {
+    setCodeFromCommand(command);
+    return;
+  }
+
   if (strpre("SETTIME", command)) {
     setTimeFromCommand(command);
     return;
@@ -293,7 +341,7 @@ void handleCommand(char *command) {
     setColorFromCommand(command);
     return;
   }
-  
+
   if (strcmp(command, "TEMP") == 0) {
     readTemperatureSensor();
     return;
