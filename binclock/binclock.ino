@@ -10,26 +10,37 @@
 #define NUM_LED_COLS 6
 #define DATA_PIN 7
 #define TIME_INTERVAL 1000
+#define FADE_INTERVAL 34
+#define FADE_DURATION 800
+
+const byte FADE_STEP = 255 * FADE_INTERVAL / FADE_DURATION;
 
 const byte pows[] = {1, 2, 4, 8};
 
-// hour first digit
-const byte hour_d1[4] = {0, 11, 12, 23};
+const byte ledPositions[4][6] = {
+  {0, 1, 2, 3, 4, 5},
+  {11, 10, 9, 8, 7, 6},
+  {12, 13, 14, 15, 16, 17},
+  {23, 22, 21, 20, 19, 18}
+};
 
-// hour second digit
-const byte hour_d2[4] = {1, 10, 13, 22};
+// first digit
+const byte d1[4] = {0, 11, 12, 23};
+
+// second digit
+const byte d2[4] = {1, 10, 13, 22};
 
 // minute first digit
-const byte minute_d1[4] = {2, 9, 14, 21};
+const byte d3[4] = {2, 9, 14, 21};
 
 // minute second digit
-const byte minute_d2[4] = {3, 8, 15, 20};
+const byte d4[4] = {3, 8, 15, 20};
 
 // second first digit
-const byte second_d1[4] = {4, 7, 16, 19};
+const byte d5[4] = {4, 7, 16, 19};
 
 // second second digit
-const byte second_d2[4] = {5, 6, 17, 18};
+const byte d6[4] = {5, 6, 17, 18};
 
 
 #define MAX_CMD_LENGTH 80
@@ -40,14 +51,17 @@ const byte second_d2[4] = {5, 6, 17, 18};
 byte singleClockColor[3];
 
 byte rowColors[4][3] = {
-    {0, 255, 255},
-    {96, 255, 255},
-    {140, 255, 255},
-    {213, 255, 255}
-  };
+  {0, 255, 255},
+  {96, 255, 255},
+  {140, 255, 255},
+  {213, 255, 255}
+};
 
 byte displayMode = 0;
-byte colorMode = 1;
+byte colorMode = 0;
+
+byte onOffMatrix[4][6] = {0};
+byte fadeMatrix[4][6] = {0};
 
 CRGB leds[NUM_LEDS];
 unsigned long timer;
@@ -64,7 +78,7 @@ void setup() {
 
 time_t getLocalTime() {
   static TimeChangeRule germanSummerTime = {"DEUS", Last, Sun, Mar, 2, 120};
-  static TimeChangeRule germanWinterTime = {"WINS", Last, Sun, Oct, 3, 60};
+  static TimeChangeRule germanWinterTime = {"DEUW", Last, Sun, Oct, 3, 60};
   static Timezone germanTime(germanSummerTime, germanWinterTime);
   time_t localTime = germanTime.toLocal(now());
   return localTime;
@@ -97,61 +111,155 @@ void readTime() {
 }
 
 void showTime() {
-  static unsigned long previousMillis = 0;
+  static unsigned long previousTimeMillis = 0;
+  static unsigned long previousFadeMillis = 0;
 
-  if (millis() - previousMillis > TIME_INTERVAL) {
-    previousMillis = millis();
+  if (millis() - previousFadeMillis > FADE_INTERVAL) {
+    previousFadeMillis = millis();
+    calculateFadeMatrix();
+    displayDigits();
+    //printFadeMatrix();
+  }
+
+  if (millis() - previousTimeMillis > TIME_INTERVAL) {
+    previousTimeMillis = millis();
     time_t localTime = getLocalTime();
 
-    byte remainingHourDigit1 = hour(localTime) / 10;
-    byte remainingHourDigit2 = hour(localTime) % 10;
-    byte remainingMinuteDigit1 = minute(localTime) / 10;
-    byte remainingMinuteDigit2 = minute(localTime) % 10;
-    byte remainingSecondDigit1 = second(localTime) / 10;
-    byte remainingSecondDigit2 = second(localTime) % 10;
+    byte digit1 = hour(localTime) / 10;
+    byte digit2 = hour(localTime) % 10;
+    byte digit3 = minute(localTime) / 10;
+    byte digit4 = minute(localTime) % 10;
+    byte digit5 = second(localTime) / 10;
+    byte digit6 = second(localTime) % 10;
 
     byte displayValues[] = {
-      remainingHourDigit1,
-      remainingHourDigit2,
-      remainingMinuteDigit1,
-      remainingMinuteDigit2,
-      remainingSecondDigit1,
-      remainingSecondDigit2
+      digit1,
+      digit2,
+      digit3,
+      digit4,
+      digit5,
+      digit6
     };
 
-    displayDigitsForRows(displayValues);
+    calculateOnOffMatrix(displayValues);
+    //printOnOffMatrix();
   }
 }
 
 void showTimeAndTemperature() {
-  static unsigned long previousMillis = 0;
+  static unsigned long previousTimeMillis = 0;
 
-  if (millis() - previousMillis > TIME_INTERVAL) {
-    previousMillis = millis();
+  if (millis() - previousTimeMillis > TIME_INTERVAL) {
+    previousTimeMillis = millis();
 
     float sensorReading = RTC.temperature() / 4.0;
     byte roundedTemperature = (byte) (sensorReading + 0.5);
 
     time_t localTime = getLocalTime();
 
-    byte remainingHourDigit1 = hour(localTime) / 10;
-    byte remainingHourDigit2 = hour(localTime) % 10;
-    byte remainingMinuteDigit1 = minute(localTime) / 10;
-    byte remainingMinuteDigit2 = minute(localTime) % 10;
-    byte remainingTemperatureDigit1 = roundedTemperature / 10;
-    byte remainingTemperatureDigit2 = roundedTemperature % 10;
+    byte digit1 = hour(localTime) / 10;
+    byte digit2 = hour(localTime) % 10;
+    byte digit3 = minute(localTime) / 10;
+    byte digit4 = minute(localTime) % 10;
+    byte digit5 = roundedTemperature / 10;
+    byte digit6 = roundedTemperature % 10;
 
     byte displayValues[] = {
-      remainingHourDigit1,
-      remainingHourDigit2,
-      remainingMinuteDigit1,
-      remainingMinuteDigit2,
-      remainingTemperatureDigit1,
-      remainingTemperatureDigit2
+      digit1,
+      digit2,
+      digit3,
+      digit4,
+      digit5,
+      digit6
     };
 
     displayDigitsForRows(displayValues);
   }
+}
+
+void calculateOnOffMatrix(byte rowValues[6]) {
+  memset(onOffMatrix, 0, sizeof(onOffMatrix));
+
+  for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
+    int currentBinaryPower = pows[i];
+    if (rowValues[0] > 0 && rowValues[0] >= currentBinaryPower) {
+      rowValues[0] -= currentBinaryPower;
+      onOffMatrix[i][0] = 1;
+    }
+    if (rowValues[1] > 0 && rowValues[1] >= currentBinaryPower) {
+      rowValues[1] -= currentBinaryPower;
+      onOffMatrix[i][1] = 1;
+    }
+
+    if (rowValues[2] > 0 && rowValues[2] >= currentBinaryPower) {
+      rowValues[2] -= currentBinaryPower;
+      onOffMatrix[i][2] = 1;
+    }
+    if (rowValues[3] > 0 && rowValues[3] >= currentBinaryPower) {
+      rowValues[3] -= currentBinaryPower;
+      onOffMatrix[i][3] = 1;
+    }
+
+    if (rowValues[4] > 0 && rowValues[4] >= currentBinaryPower) {
+      rowValues[4] -= currentBinaryPower;
+      onOffMatrix[i][4] = 1;
+    }
+    if (rowValues[5] > 0 && rowValues[5] >= currentBinaryPower) {
+      rowValues[5] -= currentBinaryPower;
+      onOffMatrix[i][5] = 1;
+    }
+  }
+}
+
+void calculateFadeMatrix() {
+  for (byte i = 0; i < NUM_LED_ROWS; i++) {
+    for (byte j = 0; j < NUM_LED_COLS; j++) {
+      if (onOffMatrix[i][j]) {
+        if (FADE_STEP > 255 - fadeMatrix[i][j]) {
+          fadeMatrix[i][j] = 255;
+        } else {
+          fadeMatrix[i][j] += FADE_STEP;
+        }
+        continue;
+      }
+      if (!onOffMatrix[i][j]) {
+        if (fadeMatrix[i][j] < FADE_STEP) {
+          fadeMatrix[i][j] = 0;
+        } else {
+          fadeMatrix[i][j] -= FADE_STEP;
+        }
+      }
+    }
+  }
+}
+
+void printOnOffMatrix() {
+  for (byte i = 0; i < NUM_LED_ROWS; i++) {
+    for (byte j = 0; j < NUM_LED_COLS; j++) {
+      Serial.print(onOffMatrix[i][j]);
+      Serial.print(" ");
+    }
+    Serial.println("\n");
+  }
+}
+
+void printFadeMatrix() {
+  for (byte i = 0; i < NUM_LED_ROWS; i++) {
+    for (byte j = 0; j < NUM_LED_COLS; j++) {
+      Serial.print(fadeMatrix[i][j]);
+      Serial.print(" ");
+    }
+    Serial.println("\n");
+  }
+}
+
+void displayDigits() {
+  for (byte i = 0; i < NUM_LED_ROWS; i++) {
+    for (byte j = 0; j < NUM_LED_COLS; j++) {
+      leds[ledPositions[i][j]].setHSV(singleClockColor[0], singleClockColor[1], fadeMatrix[i][j]);
+    }
+  }
+  FastLED.show();
 }
 
 void displayDigitsForRows(byte rowValues[6]) {
@@ -161,36 +269,36 @@ void displayDigitsForRows(byte rowValues[6]) {
     int currentBinaryPower = pows[i];
     if (rowValues[0] > 0 && rowValues[0] >= currentBinaryPower) {
       rowValues[0] -= currentBinaryPower;
-      colorLedAtPosition(hour_d1[i]);
+      colorLedAtPosition(d1[i]);
     }
     if (rowValues[1] > 0 && rowValues[1] >= currentBinaryPower) {
       rowValues[1] -= currentBinaryPower;
-      colorLedAtPosition(hour_d2[i]);
+      colorLedAtPosition(d2[i]);
     }
 
     if (rowValues[2] > 0 && rowValues[2] >= currentBinaryPower) {
       rowValues[2] -= currentBinaryPower;
-      colorLedAtPosition(minute_d1[i]);
+      colorLedAtPosition(d3[i]);
     }
     if (rowValues[3] > 0 && rowValues[3] >= currentBinaryPower) {
       rowValues[3] -= currentBinaryPower;
-      colorLedAtPosition(minute_d2[i]);
+      colorLedAtPosition(d4[i]);
     }
 
     if (rowValues[4] > 0 && rowValues[4] >= currentBinaryPower) {
       rowValues[4] -= currentBinaryPower;
-      colorLedAtPosition(second_d1[i]);
+      colorLedAtPosition(d5[i]);
     }
     if (rowValues[5] > 0 && rowValues[5] >= currentBinaryPower) {
       rowValues[5] -= currentBinaryPower;
-      colorLedAtPosition(second_d2[i]);
+      colorLedAtPosition(d6[i]);
     }
   }
   FastLED.show();
 }
 
 void colorBackgroundLeds() {
-    switch (colorMode) {
+  switch (colorMode) {
     case 0:
       fill_solid(leds, NUM_LEDS, CHSV(singleClockColor[0], singleClockColor[1], singleClockColor[2] / 2));
       break;
@@ -209,7 +317,7 @@ void colorLedAtPosition(int position) {
       break;
     case 1:
       rowColorLed(position);
-      break;      
+      break;
   }
 }
 
