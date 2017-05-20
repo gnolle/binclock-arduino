@@ -58,13 +58,11 @@ byte rowColors[4][3] = {
 };
 
 byte displayMode = 0;
-byte colorMode = 0;
 
 byte onOffMatrix[4][6] = {0};
 byte fadeMatrix[4][6] = {0};
 
 CRGB leds[NUM_LEDS];
-unsigned long timer;
 
 SoftwareSerial btSerial(rxPin, txPin);
 
@@ -85,6 +83,7 @@ time_t getLocalTime() {
 }
 
 void initClockColor() {
+  randomSeed(analogRead(0));
   singleClockColor[0] = random(256);
   singleClockColor[1] = 255;
   singleClockColor[2] = 255;
@@ -92,11 +91,7 @@ void initClockColor() {
 
 void loop() {
   handleSerialByte(btSerial.read());
-  if (displayMode == 0) {
-    showTime();
-  } else {
-    showTimeAndTemperature();
-  }
+  showTime();
 }
 
 void readTime() {
@@ -118,7 +113,6 @@ void showTime() {
     previousFadeMillis = millis();
     calculateFadeMatrix();
     displayDigits();
-    //printFadeMatrix();
   }
 
   if (millis() - previousTimeMillis > TIME_INTERVAL) {
@@ -142,38 +136,6 @@ void showTime() {
     };
 
     calculateOnOffMatrix(displayValues);
-    //printOnOffMatrix();
-  }
-}
-
-void showTimeAndTemperature() {
-  static unsigned long previousTimeMillis = 0;
-
-  if (millis() - previousTimeMillis > TIME_INTERVAL) {
-    previousTimeMillis = millis();
-
-    float sensorReading = RTC.temperature() / 4.0;
-    byte roundedTemperature = (byte) (sensorReading + 0.5);
-
-    time_t localTime = getLocalTime();
-
-    byte digit1 = hour(localTime) / 10;
-    byte digit2 = hour(localTime) % 10;
-    byte digit3 = minute(localTime) / 10;
-    byte digit4 = minute(localTime) % 10;
-    byte digit5 = roundedTemperature / 10;
-    byte digit6 = roundedTemperature % 10;
-
-    byte displayValues[] = {
-      digit1,
-      digit2,
-      digit3,
-      digit4,
-      digit5,
-      digit6
-    };
-
-    displayDigitsForRows(displayValues);
   }
 }
 
@@ -262,73 +224,6 @@ void displayDigits() {
   FastLED.show();
 }
 
-void displayDigitsForRows(byte rowValues[6]) {
-  colorBackgroundLeds();
-
-  for (int i = NUM_LED_ROWS - 1; i >= 0; i--) {
-    int currentBinaryPower = pows[i];
-    if (rowValues[0] > 0 && rowValues[0] >= currentBinaryPower) {
-      rowValues[0] -= currentBinaryPower;
-      colorLedAtPosition(d1[i]);
-    }
-    if (rowValues[1] > 0 && rowValues[1] >= currentBinaryPower) {
-      rowValues[1] -= currentBinaryPower;
-      colorLedAtPosition(d2[i]);
-    }
-
-    if (rowValues[2] > 0 && rowValues[2] >= currentBinaryPower) {
-      rowValues[2] -= currentBinaryPower;
-      colorLedAtPosition(d3[i]);
-    }
-    if (rowValues[3] > 0 && rowValues[3] >= currentBinaryPower) {
-      rowValues[3] -= currentBinaryPower;
-      colorLedAtPosition(d4[i]);
-    }
-
-    if (rowValues[4] > 0 && rowValues[4] >= currentBinaryPower) {
-      rowValues[4] -= currentBinaryPower;
-      colorLedAtPosition(d5[i]);
-    }
-    if (rowValues[5] > 0 && rowValues[5] >= currentBinaryPower) {
-      rowValues[5] -= currentBinaryPower;
-      colorLedAtPosition(d6[i]);
-    }
-  }
-  FastLED.show();
-}
-
-void colorBackgroundLeds() {
-  switch (colorMode) {
-    case 0:
-      fill_solid(leds, NUM_LEDS, CHSV(singleClockColor[0], singleClockColor[1], singleClockColor[2] / 2));
-      break;
-    case 1:
-      for (int i = 0; i < NUM_LEDS; i++) {
-        leds[i].setHSV(rowColors[i / NUM_LED_COLS][0], rowColors[i / NUM_LED_COLS][1], rowColors[i / NUM_LED_COLS][2] / 2);
-      }
-      break;
-  }
-}
-
-void colorLedAtPosition(int position) {
-  switch (colorMode) {
-    case 0:
-      singleColorLed(position);
-      break;
-    case 1:
-      rowColorLed(position);
-      break;
-  }
-}
-
-void singleColorLed(int position) {
-  leds[position].setHSV(singleClockColor[0], singleClockColor[1], singleClockColor[2]);
-}
-
-void rowColorLed(int position) {
-  leds[position].setHSV(rowColors[position / NUM_LED_COLS][0], rowColors[position / NUM_LED_COLS][1], rowColors[position / NUM_LED_COLS][2]);
-}
-
 void readTemperatureSensor() {
   float sensorReading = RTC.temperature() / 4.0;
 
@@ -388,16 +283,6 @@ void setModeFromCommand(char const *command) {
   displayMode = atoi(extractedMode);
 }
 
-void setCodeFromCommand(char const *command) {
-  const byte SETCODE_CMD_LENGTH = 7;
-  byte codeDigits = strlen(command) - SETCODE_CMD_LENGTH;
-  char extractedCode[5];
-  strncpy(extractedCode, command + SETCODE_CMD_LENGTH, codeDigits);
-  extractedCode[codeDigits] = '\0';
-
-  colorMode = atoi(extractedCode);
-}
-
 void writeToBtSerial(char const *message) {
   // add CR and print to serial
   char response[50];
@@ -432,11 +317,6 @@ void handleCommand(char *command) {
 
   if (strpre("SETMODE", command)) {
     setModeFromCommand(command);
-    return;
-  }
-
-  if (strpre("SETCODE", command)) {
-    setCodeFromCommand(command);
     return;
   }
 
